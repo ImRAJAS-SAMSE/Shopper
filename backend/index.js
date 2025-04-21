@@ -7,47 +7,28 @@ const cors = require("cors");
 
 const app = express();
 const port = 4000;
+const JWT_SECRET = "secret_ecom"; // Move to .env in production
 
+// Middleware
 app.use(express.json());
 app.use(cors());
+app.use('/images', express.static('upload/images'));
 
-// MongoDB Connection
+// DB Connection
 mongoose.connect("", {
   useNewUrlParser: true,
   useUnifiedTopology: true,
-});
+}).then(() => console.log("MongoDB connected"))
+  .catch(err => console.error("MongoDB error:", err));
 
-// Image Upload Config
+// Multer Setup
 const storage = multer.diskStorage({
   destination: './upload/images',
   filename: (req, file, cb) => {
-    const filename = `${file.fieldname}_${Date.now()}${path.extname(file.originalname)}`;
-    cb(null, filename);
+    cb(null, `${file.fieldname}_${Date.now()}${path.extname(file.originalname)}`);
   },
 });
-
 const upload = multer({ storage });
-app.use('/images', express.static('upload/images'));
-
-app.post("/upload", upload.single('product'), (req, res) => {
-  res.json({
-    success: 1,
-    image_url: `http://localhost:4000/images/${req.file.filename}`,
-  });
-});
-
-// Middleware for Auth
-const fetchuser = async (req, res, next) => {
-  const token = req.header("auth-token");
-  if (!token) return res.status(401).json({ errors: "Please authenticate using a valid token" });
-  try {
-    const data = jwt.verify(token, "secret_ecom");
-    req.user = data.user;
-    next();
-  } catch {
-    res.status(401).json({ errors: "Please authenticate using a valid token" });
-  }
-};
 
 // Mongo Schemas
 const Users = mongoose.model("Users", {
@@ -69,75 +50,123 @@ const Product = mongoose.model("Product", {
   avilable: { type: Boolean, default: true },
 });
 
-// Routes
-app.get("/", (req, res) => res.send("Root"));
+// JWT Middleware
+const fetchUser = async (req, res, next) => {
+  const token = req.header("auth-token");
+  if (!token) return res.status(401).json({ error: "Token missing" });
 
-app.post("/login", async (req, res) => {
-  const user = await Users.findOne({ email: req.body.email });
-  if (user && req.body.password === user.password) {
-    const data = { user: { id: user.id } };
-    const token = jwt.sign(data, "secret_ecom");
-    res.json({ success: true, token });
-  } else {
-    res.status(400).json({ success: false, errors: "Incorrect email or password" });
+  try {
+    const data = jwt.verify(token, JWT_SECRET);
+    req.user = data.user;
+    next();
+  } catch {
+    res.status(401).json({ error: "Invalid token" });
   }
+};
+
+// Routes
+app.get("/", (req, res) => res.send("API running"));
+
+app.post("/upload", upload.single('product'), (req, res) => {
+  res.json({
+    success: 1,
+    image_url: `http://localhost:${port}/images/${req.file.filename}`,
+  });
 });
 
 app.post("/signup", async (req, res) => {
-  const { username, email, password } = req.body;
-  const existingUser = await Users.findOne({ email });
-  if (existingUser) return res.status(400).json({ success: false, errors: "User already exists" });
+  try {
+    const { username, email, password } = req.body;
+    const existingUser = await Users.findOne({ email });
+    if (existingUser) return res.status(400).json({ success: false, error: "User exists" });
 
-  const cart = Object.fromEntries(Array.from({ length: 300 }, (_, i) => [i, 0]));
-  const user = new Users({ name: username, email, password, cartData: cart });
-  await user.save();
+    const cart = Object.fromEntries(Array.from({ length: 300 }, (_, i) => [i, 0]));
+    const user = new Users({ name: username, email, password, cartData: cart });
+    await user.save();
 
-  const token = jwt.sign({ user: { id: user.id } }, "secret_ecom");
-  res.json({ success: true, token });
+    const token = jwt.sign({ user: { id: user.id } }, JWT_SECRET);
+    res.json({ success: true, token });
+  } catch (err) {
+    res.status(500).json({ success: false, error: "Signup failed" });
+  }
 });
 
-app.get("/allproducts", async (req, res) => res.send(await Product.find({})));
+app.post("/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const user = await Users.findOne({ email });
+    if (!user || user.password !== password)
+      return res.status(400).json({ success: false, error: "Invalid credentials" });
+
+    const token = jwt.sign({ user: { id: user.id } }, JWT_SECRET);
+    res.json({ success: true, token });
+  } catch {
+    res.status(500).json({ success: false, error: "Login failed" });
+  }
+});
+
+app.get("/allproducts", async (req, res) => {
+  const products = await Product.find({});
+  res.send(products);
+});
 
 app.get("/newcollections", async (req, res) => {
-  const products = await Product.find({});
-  res.send(products.slice(-8));
+  const products = await Product.find().sort({ date: -1 }).limit(8);
+  res.send(products);
 });
 
 app.get("/popularinwomen", async (req, res) => {
-  const products = await Product.find({});
-  res.send(products.slice(0, 4));
+  const products = await Product.find().limit(4);
+  res.send(products);
 });
 
-app.post("/addtocart", fetchuser, async (req, res) => {
+app.post("/addtocart", fetchUser, async (req, res) => {
+  const { itemId } = req.body;
   const user = await Users.findById(req.user.id);
-  user.cartData[req.body.itemId] += 1;
-  await user.save();
-  res.send("Added");
+  if (user) {
+    user.cartData[itemId] = (user.cartData[itemId] || 0) + 1;
+    await user.save();
+    res.send("Item added to cart");
+  } else {
+    res.status(404).send("User not found");
+  }
 });
 
-app.post("/removefromcart", fetchuser, async (req, res) => {
+app.post("/removefromcart", fetchUser, async (req, res) => {
+  const { itemId } = req.body;
   const user = await Users.findById(req.user.id);
-  if (user.cartData[req.body.itemId] > 0) user.cartData[req.body.itemId] -= 1;
-  await user.save();
-  res.send("Removed");
+  if (user && user.cartData[itemId] > 0) {
+    user.cartData[itemId] -= 1;
+    await user.save();
+    res.send("Item removed from cart");
+  } else {
+    res.status(404).send("Item not found in cart");
+  }
 });
 
-app.post("/getcart", fetchuser, async (req, res) => {
+app.post("/getcart", fetchUser, async (req, res) => {
   const user = await Users.findById(req.user.id);
-  res.json(user.cartData);
+  res.json(user?.cartData || {});
 });
 
 app.post("/addproduct", async (req, res) => {
-  const lastProduct = await Product.findOne().sort({ id: -1 });
-  const newId = lastProduct ? lastProduct.id + 1 : 1;
-  const product = new Product({ id: newId, ...req.body });
-  await product.save();
-  res.json({ success: true, name: req.body.name });
+  try {
+    const lastProduct = await Product.findOne().sort({ id: -1 });
+    const newProduct = new Product({ id: (lastProduct?.id || 0) + 1, ...req.body });
+    await newProduct.save();
+    res.json({ success: true, name: newProduct.name });
+  } catch {
+    res.status(500).json({ success: false, error: "Product not added" });
+  }
 });
 
 app.post("/removeproduct", async (req, res) => {
-  await Product.findOneAndDelete({ id: req.body.id });
-  res.json({ success: true, name: req.body.name });
+  try {
+    await Product.findOneAndDelete({ id: req.body.id });
+    res.json({ success: true, message: "Product removed" });
+  } catch {
+    res.status(500).json({ success: false, error: "Remove failed" });
+  }
 });
 
-app.listen(port, () => console.log(`Server running on port ${port}`));
+app.listen(port, () => console.log(`🚀 Server running at http://localhost:${port}`));
