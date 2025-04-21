@@ -1,60 +1,42 @@
 # 🛒 Shopper – MERN Stack eCommerce Platform
 
-**Shopper** is a sleek and modern eCommerce platform built using the MERN stack (MongoDB, Express.js, React.js, Node.js). It offers a seamless shopping experience with a fully functional admin panel to manage products, users, and orders.
+**Shopper** is a modern and responsive eCommerce platform built with the MERN stack (MongoDB, Express.js, React.js, Node.js). It delivers a smooth shopping experience for customers and a powerful admin panel for managing products, users, and orders.
 
 ---
 
-## 🚀 Features
+## 🚀 Key Features
 
-- User authentication and authorization with JWT
-- Admin panel for product and user management
-- Product listings with images and details
-- Add to cart and checkout functionality
-- MongoDB-based product and user storage
-- Responsive UI built with React
+- 🔐 Secure user authentication & authorization (JWT)
+- 🛠️ Admin dashboard for managing products, users & orders
+- 🛍️ Product listings with images, descriptions & pricing
+- 🛒 Add to cart and checkout flow
+- 💾 MongoDB database for storing users, products & orders
+- 📱 Fully responsive design built with React
 
 ---
 
 ## 🧰 Tech Stack
 
-- **Frontend:** React.js, HTML, CSS, JavaScript
-- **Backend:** Node.js, Express.js
-- **Database:** MongoDB
-- **Authentication:** JWT (JSON Web Tokens)
-- **Version Control:** Git, GitHub
+- **Frontend:** React.js, HTML, CSS, JavaScript  
+- **Backend:** Node.js, Express.js  
+- **Database:** MongoDB  
+- **Authentication:** JSON Web Tokens (JWT)  
+- **Version Control:** Git & GitHub
 
 ---
 
+## 🛠️ Getting Started
 
-## 🛠️ Installation & Setup
+Follow these steps to set up the project locally:
 
-Follow these steps to run the project locally:
-
-### 1. Clone the repository
+### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/ImRAJAS-SAMSE/ShopNest
+git clone https://github.com/ImRAJAS-SAMSE/ShopNest.git
 cd ShopNest
-``` 
 
-### 2. Install dependencies
+app will be available at:
 
-```bash
-# Frontend
-cd frontend
-npm install
-```
-```bash
-# Backend
-cd ../backend
-npm install
-```
-### 3. Start the application
-```bash
-# From project root
-npm run dev
-
-App will run on:
 Frontend: http://localhost:3000
+
 Backend: http://localhost:5000
-```
