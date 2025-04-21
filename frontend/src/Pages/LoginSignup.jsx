@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import "./CSS/LoginSignup.css";
 
 const LoginSignup = () => {
-  const [state, setState] = useState("Login");
+  const [authMode, setAuthMode] = useState("Login");
   const [formData, setFormData] = useState({
     username: "",
     email: "",
@@ -10,12 +10,18 @@ const LoginSignup = () => {
   });
 
   const changeHandler = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setFormData((prevData) => ({ ...prevData, [name]: value }));
   };
 
   const handleAuth = async (endpoint) => {
+    if (!formData.email || !formData.password || (authMode === "Sign Up" && !formData.username)) {
+      alert("Please fill in all required fields.");
+      return;
+    }
+
     try {
-      const response = await fetch(http://localhost:4000/${endpoint}, {
+      const response = await fetch(`http://localhost:4000/${endpoint}`, {
         method: "POST",
         headers: {
           Accept: "application/json",
@@ -30,7 +36,7 @@ const LoginSignup = () => {
         localStorage.setItem("auth-token", data.token);
         window.location.replace("/");
       } else {
-        alert(data.errors || "Something went wrong.");
+        alert(data.errors || "Authentication failed.");
       }
     } catch (error) {
       console.error("Auth Error:", error);
@@ -39,15 +45,15 @@ const LoginSignup = () => {
   };
 
   const handleSubmit = () => {
-    handleAuth(state === "Login" ? "login" : "signup");
+    handleAuth(authMode === "Login" ? "login" : "signup");
   };
 
   return (
     <div className="loginsignup">
       <div className="loginsignup-container">
-        <h1>{state}</h1>
+        <h1>{authMode}</h1>
         <div className="loginsignup-fields">
-          {state === "Sign Up" && (
+          {authMode === "Sign Up" && (
             <input
               type="text"
               placeholder="Your name"
@@ -75,15 +81,15 @@ const LoginSignup = () => {
         <button onClick={handleSubmit}>Continue</button>
 
         <p className="loginsignup-login">
-          {state === "Login" ? (
+          {authMode === "Login" ? (
             <>
-              Create an account?{" "}
-              <span onClick={() => setState("Sign Up")}>Click here</span>
+              Don't have an account?{" "}
+              <span onClick={() => setAuthMode("Sign Up")}>Sign up here</span>
             </>
           ) : (
             <>
               Already have an account?{" "}
-              <span onClick={() => setState("Login")}>Login here</span>
+              <span onClick={() => setAuthMode("Login")}>Login here</span>
             </>
           )}
         </p>
@@ -99,4 +105,4 @@ const LoginSignup = () => {
   );
 };
 
-export default LoginSignup;
+export default LoginSignup;
